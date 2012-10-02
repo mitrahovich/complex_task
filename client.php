@@ -1,8 +1,11 @@
 <?php
 require_once 'lib/Complex.php';
+$host     = '';
+$user     = '';
+$password = '';
 
 $storage = new PostgresStorage(
-    new PDO('pgsql:host=127.0.0.1;dbname=postgres', 'postgres', 'lttumvuv')
+    new PDO($host, $user, $password)
 );
 
 $mapper = new ComplexMapper();
