@@ -62,18 +62,14 @@ CREATE TABLE bus.bus_line_tree
 (
   ancestor   integer not null, -- предок
   descendant integer not null, -- потомок
-  bus_id     integer not null,         -- номер остановки
 
-  constraint pk_bus_line_tree primary key (ancestor, descendant, bus_id),
+  constraint pk_bus_line_tree primary key (ancestor, descendant),
 
   constraint fk_bus_line_ancestor foreign key (ancestor)
     references bus.bus_line (id) match simple,
 
   constraint fk_bus_line_descendant foreign key (descendant)
-    references bus.bus_line (id) match simple,
-
-  constraint fk_bus_line_bus foreign key (bus_id)
-    references bus.bus (id) match simple
+    references bus.bus_line (id) match simple
 );
 
 
@@ -99,38 +95,38 @@ insert into bus.bus_line values
 (10, 2, 6, '10:00:00' , null, 4);
 
 insert into bus.bus_line_tree values
-(1,1,1),
-(1,3,1),
-(1,4,1),
-(1,5,1),
-(1,7,1),
-(3,3,1),
-(3,4,1),
-(3,5,1),
-(3,7,1),
-(4,4,1),
-(4,5,1),
-(4,7,1),
-(5,5,1),
-(5,7,1),
-(7,7,1),
-(2,2,2),
-(2,3,2),
-(2,4,2),
-(2,5,2),
-(2,6,2),
-(3,3,2),
-(3,4,2),
-(3,5,2),
-(3,6,2),
-(4,4,2),
-(4,5,2),
-(4,6,2),
-(5,5,2),
-(5,6,2),
-(6,6,2);
--- Написать запрос, получающий список всех рейсов с городом отправления, городом прибытия и общим временем в пути.
+(1,1),
+(1,2),
+(1,3),
+(1,4),
+(1,5),
+(2,2),
+(2,3),
+(2,4),
+(2,5),
+(3,3),
+(3,4),
+(3,5),
+(4,4),
+(4,5),
+(5,5),
+(6,6),
+(6,7),
+(6,8),
+(6,9),
+(6,10),
+(7,7),
+(7,8),
+(7,9),
+(7,10),
+(8,8),
+(8,9),
+(8,10),
+(9,9),
+(9,10),
+(10,10);
 
+-- Написать запрос, получающий список всех рейсов с городом отправления, городом прибытия и общим временем в пути.
 select
   b.id,
   (24 * lt.day_in) * '1 day'::interval + (lt.departure - lf.arrival) as total_time,
@@ -144,21 +140,22 @@ join dict.city ct on ct.id = lt.city_id
 where
   lf.departure is null
   and lt.arrival is null;
---Написать запрос, который по заданной дате, городу отправления и городу прибытия выведет список возможных рейсов, количество остановок и общее время между этими городами
 
+--Написать запрос, который по заданной дате, городу отправления и городу прибытия выведет список возможных рейсов, количество остановок и общее время между этими городами
 select
-  b.name,
-  (24 * (lt.day_in - lf.day_in)) * '1 day'::interval + (lt.departure - lf.arrival) as total_time,
+  b.name as bus_name,
   (
-    select count(*) - 2 -- отсекаем конечные точки
+    select
+      count (t2.descendant) - 2
     from
-      bus.bus_line_tree t1, bus.bus_line_tree t2
+      bus.bus_line_tree t1,
+      bus.bus_line_tree t2
     where
-      t1.ancestor = lf.city_id
-      and t2.descendant = lt.city_id
-      and t1.descendant = t2.ancestor
-      and t1.bus_id = b.id and t2.bus_id = b.id
-  ) as stop_count
+      t1.ancestor = lf.id
+      and t2.descendant = lt.id
+      and t2.ancestor = t1.descendant
+  ) as stops_count,
+  (24 * (lt.day_in - lf.day_in)) * '1 day'::interval + (lt.departure - lf.arrival) as total_time
 from
   bus.bus b
   join bus.bus_line lf on lf.bus_id = b.id
@@ -169,17 +166,18 @@ where
   and lt.city_id = 5;
 
 --Написать запрос, которые по заданной дате, городу отправления и городу прибытия выведет нумерованный список промежуточных городов: № остановки, город, время прибытия, время отбытия (включая конечную и начальную точки).
-
-with stops as (
- select t1.descendant, t1.bus_id
- from
-   bus.bus_line_tree t1, bus.bus_line_tree t2
- where
-   and t1.descendant = t2.ancestor
-   and t1.bus_id = t2.bus_id
-)
-select * from stops s
-join bus.bus_line l on l.id = descendant
-join bus.bus b on b.id = s.bus_id
-where '2012-10-20' between b.start and b.stop
-order by s.bus_id;
+select
+  c.name, ll.departure, ll.arrival
+from
+  bus.bus b
+  join bus.bus_line lf on lf.bus_id = b.id
+  join bus.bus_line lt on lt.bus_id = b.id
+  join bus.bus_line_tree t1 on t1.ancestor = lf.id
+  join bus.bus_line_tree t2 on t2.descendant = lt.id and t2.ancestor = t1.descendant
+  join bus.bus_line ll on ll.id = t2.ancestor
+  join dict.city c on c.id = ll.city_id
+where
+  '2012-10-20' between b.start and b.stop
+  and lf.city_id = 3
+  and lt.city_id = 5
+order by b.id, ll.day_in, departure
