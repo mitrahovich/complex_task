@@ -180,4 +180,4 @@ where
   '2012-10-20' between b.start and b.stop
   and lf.city_id = 3
   and lt.city_id = 5
-order by b.id, ll.day_in, departure
+order by b.id, ll.day_in, departure;
