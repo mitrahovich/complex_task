@@ -145,17 +145,15 @@ where
 select
   b.name as bus_name,
   (
-    select
-      count (t2.descendant) - 2
-    from
-      bus.bus_line_tree t1,
-      bus.bus_line_tree t2
-    where
-      t1.ancestor = lf.id
-      and t2.descendant = lt.id
-      and t2.ancestor = t1.descendant
+     select count (*) - 2
+     from bus.bus_line ll
+     where
+       (24 * (ll.day_in) * '1 day'::interval + (ll.departure - ll.arrival))
+         between (24 * (lf.day_in) * '1 day'::interval + (lf.departure - lf.arrival))
+           and (24 * (lt.day_in) * '1 day'::interval + (lt.departure - lf.arrival))
+       and ll.bus_id = b.id
   ) as stops_count,
-  (24 * (lt.day_in - lf.day_in)) * '1 day'::interval + (lt.departure - lf.arrival) as total_time
+(24 * (lt.day_in - lf.day_in)) * '1 day'::interval + (lt.departure - lf.arrival) as total_time
 from
   bus.bus b
   join bus.bus_line lf on lf.bus_id = b.id
